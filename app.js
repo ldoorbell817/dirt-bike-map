@@ -1,67 +1,64 @@
 let map;
+let userLocation;
 
-function initMap() {
-  navigator.geolocation.getCurrentPosition(position => {
-    const userLocation = {
-      lat: position.coords.latitude,
-      lng: position.coords.longitude
-    };
+// Sample dirt bike locations (you can expand this later)
+const spots = [
+  {
+    name: "Club Moto MX",
+    type: "mx",
+    coords: [37.7016, -121.7650]
+  },
+  {
+    name: "Argyll MX Park",
+    type: "mx",
+    coords: [38.4440, -121.8200]
+  },
+  {
+    name: "OHV Trail Zone (Corral Hollow)",
+    type: "trail",
+    coords: [37.6200, -121.5600]
+  }
+];
 
-    map = new google.maps.Map(document.getElementById("map"), {
-      center: userLocation,
-      zoom: 11
-    });
+function initMap(lat, lng) {
+  map = L.map('map').setView([lat, lng], 10);
 
-    new google.maps.Marker({
-      position: userLocation,
-      map,
-      title: "You are here"
-    });
-  }, () => {
-    alert("Location access denied. Using default location.");
-    initDefault();
-  });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  L.marker([lat, lng]).addTo(map)
+    .bindPopup("📍 You are here")
+    .openPopup();
 }
 
-function initDefault() {
-  const fallback = { lat: 37.7749, lng: -122.4194 };
-
-  map = new google.maps.Map(document.getElementById("map"), {
-    center: fallback,
-    zoom: 10
-  });
-}
-
-function loadTracks() {
-  const service = new google.maps.places.PlacesService(map);
-
-  service.textSearch({
-    query: "dirt bike track OR motocross",
-    location: map.getCenter(),
-    radius: 50000
-  }, (results, status) => {
-    if (status === google.maps.places.PlacesServiceStatus.OK) {
-      results.forEach(place => addMarker(place));
-    } else {
-      alert("No tracks found nearby.");
+function showSpots(filter) {
+  spots.forEach(spot => {
+    if (filter === "all" || spot.type === filter) {
+      L.marker(spot.coords)
+        .addTo(map)
+        .bindPopup(`🏍️ ${spot.name}`);
     }
   });
 }
 
-function addMarker(place) {
-  const marker = new google.maps.Marker({
-    map,
-    position: place.geometry.location
-  });
+function findNearby() {
+  const filter = document.getElementById("filter").value;
 
-  const info = new google.maps.InfoWindow({
-    content: `
-      <strong>${place.name}</strong><br>
-      ${place.formatted_address || ""}
-    `
-  });
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
 
-  marker.addListener("click", () => {
-    info.open(map, marker);
-  });
+      if (!map) {
+        initMap(lat, lng);
+      }
+
+      showSpots(filter);
+    }, () => {
+      alert("Location blocked. Showing default area.");
+      initMap(37.7749, -122.4194);
+      showSpots(filter);
+    });
+  }
 }
