@@ -1,32 +1,13 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Dirt Bike Trails Finder</title>
-
-  <link rel="stylesheet" href="style.css">
-
-  <!-- Leaflet (free map library) -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-</head>
-
-<body>
-
 <div class="panel">
-  <h2>🏍️ Dirt Bike Finder</h2>
+  <h2>🏍️ Dirt Bike Trails</h2>
 
-  <select id="filter">
-    <option value="all">All Spots</option>
-    <option value="mx">Motocross Tracks</option>
-    <option value="trail">Off-Road Trails</option>
+  <label>Difficulty:</label>
+  <select id="difficulty">
+    <option value="all">All</option>
+    <option value="beginner">Beginner</option>
+    <option value="intermediate">Intermediate</option>
+    <option value="advanced">Advanced</option>
   </select>
 
-  <button onclick="findNearby()">Find Near Me</button>
+  <button onclick="findNearby()">Load Trails Near Me</button>
 </div>
-
-<div id="map"></div>
-
-<script src="app.js"></script>
-</body>
-</html>
