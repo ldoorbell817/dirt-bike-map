@@ -2,22 +2,31 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Dirt Bike Trails Near Me</title>
+  <title>Dirt Bike Trails Finder</title>
+
   <link rel="stylesheet" href="style.css">
+
+  <!-- Leaflet (free map library) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
+
 <body>
 
 <div class="panel">
   <h2>🏍️ Dirt Bike Finder</h2>
-  <button onclick="loadTracks()">Find Tracks Near Me</button>
+
+  <select id="filter">
+    <option value="all">All Spots</option>
+    <option value="mx">Motocross Tracks</option>
+    <option value="trail">Off-Road Trails</option>
+  </select>
+
+  <button onclick="findNearby()">Find Near Me</button>
 </div>
 
 <div id="map"></div>
 
 <script src="app.js"></script>
-<script async defer
-  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA3VcWmnV9fKveRP-zipAQj-7e2Zgzp-ro&libraries=places&callback=initMap">
-</script>
-
 </body>
 </html>
