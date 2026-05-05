@@ -1,91 +1,84 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Dirt Bike Trails & Tracks</title>
+<meta charset="UTF-8">
+<title>Dirt Bike Trails App</title>
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      display: flex;
-      height: 100vh;
-    }
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  display: flex;
+  height: 100vh;
+}
 
-    .sidebar {
-      width: 320px;
-      background: #f5f5f5;
-      padding: 15px;
-      overflow-y: auto;
-      box-shadow: 2px 0 8px rgba(0,0,0,0.1);
-    }
+.sidebar {
+  width: 340px;
+  background: #f4f4f4;
+  padding: 12px;
+  overflow-y: auto;
+}
 
-    #map {
-      flex: 1;
-    }
+#map {
+  flex: 1;
+}
 
-    h2 {
-      margin-top: 0;
-    }
+.item {
+  background: white;
+  padding: 10px;
+  margin-top: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
 
-    select, button {
-      width: 100%;
-      padding: 8px;
-      margin-top: 8px;
-    }
+.item:hover { background: #eaeaea; }
 
-    .item {
-      background: white;
-      padding: 10px;
-      margin-top: 10px;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: 0.2s;
-    }
+input, select, button {
+  width: 100%;
+  padding: 6px;
+  margin-top: 6px;
+}
 
-    .item:hover {
-      background: #e8e8e8;
-    }
-
-    .tag {
-      font-size: 12px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      color: white;
-    }
-
-    .trail { background: #444; }
-    .mx { background: #d9534f; }
-  </style>
+.small {
+  font-size: 12px;
+  color: gray;
+}
+</style>
 </head>
 
 <body>
 
 <div class="sidebar">
-  <h2>🏍️ Dirt Bike Finder</h2>
+<h2>🏍️ Dirt Bike App</h2>
 
-  <!-- Difficulty filter -->
-  <label>Difficulty</label>
-  <select id="difficulty">
-    <option value="all">All</option>
-    <option value="beginner">Beginner</option>
-    <option value="intermediate">Intermediate</option>
-    <option value="advanced">Advanced</option>
-  </select>
+<button onclick="loadSpots()">Load Spots</button>
 
-  <!-- Type filter -->
-  <label style="margin-top:10px;">Type</label>
-  <select id="type">
-    <option value="all">All</option>
-    <option value="trail">Trails</option>
-    <option value="mx">Tracks</option>
-  </select>
+<hr>
 
-  <button onclick="loadData()">Load Nearby</button>
+<h3>➕ Add Spot</h3>
 
-  <div id="list"></div>
+<input id="name" placeholder="Name">
+<select id="type">
+  <option value="trail">Trail</option>
+  <option value="mx">Track</option>
+</select>
+
+<select id="difficulty">
+  <option value="beginner">Beginner</option>
+  <option value="intermediate">Intermediate</option>
+  <option value="advanced">Advanced</option>
+</select>
+
+<input id="lat" placeholder="Latitude">
+<input id="lng" placeholder="Longitude">
+
+<button onclick="addSpot()">Submit Spot</button>
+
+<hr>
+
+<div id="list"></div>
 </div>
 
 <div id="map"></div>
@@ -93,92 +86,112 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_KEY = "YOUR_SUPABASE_KEY";
+
 let map;
 let markers = [];
 
-// 🧠 Database (tracks + trails)
-const data = [
-  { name: "Club Moto MX", type: "mx", difficulty: "advanced", coords: [37.7016, -121.7650] },
-  { name: "Argyll MX Park", type: "mx", difficulty: "intermediate", coords: [38.4440, -121.8200] },
-  { name: "Corral Hollow OHV", type: "trail", difficulty: "intermediate", coords: [37.6200, -121.5600] },
-  { name: "Del Puerto Canyon", type: "trail", difficulty: "advanced", coords: [37.4550, -121.1100] },
-  { name: "Beginner Practice Area", type: "trail", difficulty: "beginner", coords: [37.6500, -121.7000] }
-];
-
-// 🎨 colors
-function getColor(diff) {
-  if (diff === "beginner") return "green";
-  if (diff === "intermediate") return "orange";
-  return "red";
-}
-
-function initMap(lat, lng) {
-  map = L.map('map').setView([lat, lng], 10);
+// ---------- MAP ----------
+function initMap() {
+  map = L.map('map').setView([37.7749, -122.4194], 10);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
   }).addTo(map);
-
-  L.marker([lat, lng]).addTo(map)
-    .bindPopup("📍 You are here")
-    .openPopup();
 }
 
-function clear() {
+// ---------- LOAD SPOTS ----------
+async function loadSpots() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/spots`, {
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`
+    }
+  });
+
+  const spots = await res.json();
+
+  document.getElementById("list").innerHTML = "";
   markers.forEach(m => map.removeLayer(m));
   markers = [];
-}
 
-function loadData() {
-  const diff = document.getElementById("difficulty").value;
-  const type = document.getElementById("type").value;
-  const list = document.getElementById("list");
-
-  list.innerHTML = "";
-  clear();
-
-  data.forEach(item => {
-    if (diff !== "all" && item.difficulty !== diff) return;
-    if (type !== "all" && item.type !== type) return;
-
-    // MAP MARKER
-    const marker = L.circleMarker(item.coords, {
-      radius: 8,
-      color: getColor(item.difficulty),
-      fillOpacity: 0.9
-    }).addTo(map);
+  spots.forEach(spot => {
+    const marker = L.marker([spot.lat, spot.lng]).addTo(map);
 
     marker.bindPopup(`
-      <b>${item.name}</b><br>
-      Type: ${item.type}<br>
-      Difficulty: ${item.difficulty}
+      <b>${spot.name}</b><br>
+      Type: ${spot.type}<br>
+      Difficulty: ${spot.difficulty}<br>
+      ⭐ Rating: ${spot.rating || "0"}
     `);
 
     markers.push(marker);
 
-    // LEFT LIST ITEM
     const div = document.createElement("div");
     div.className = "item";
 
     div.innerHTML = `
-      <b>${item.name}</b><br>
-      <span class="tag ${item.type}">${item.type}</span>
-      <span class="tag" style="background:${getColor(item.difficulty)};">
-        ${item.difficulty}
-      </span>
+      <b>${spot.name}</b><br>
+      <span class="small">${spot.type} | ${spot.difficulty}</span><br>
+      ⭐ ${spot.rating || 0}
     `;
 
     div.onclick = () => {
-      map.setView(item.coords, 13);
+      map.setView([spot.lat, spot.lng], 13);
       marker.openPopup();
+      loadReviews(spot.id);
     };
 
-    list.appendChild(div);
+    document.getElementById("list").appendChild(div);
   });
 }
 
-// start map at default
-initMap(37.7749, -122.4194);
+// ---------- ADD SPOT ----------
+async function addSpot() {
+  const spot = {
+    name: document.getElementById("name").value,
+    type: document.getElementById("type").value,
+    difficulty: document.getElementById("difficulty").value,
+    lat: parseFloat(document.getElementById("lat").value),
+    lng: parseFloat(document.getElementById("lng").value),
+    rating: 0
+  };
+
+  await fetch(`${SUPABASE_URL}/rest/v1/spots`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(spot)
+  });
+
+  alert("Spot added!");
+  loadSpots();
+}
+
+// ---------- REVIEWS ----------
+async function loadReviews(spotId) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/reviews?spot_id=eq.${spotId}`, {
+    headers: {
+      apikey: SUPABASE_KEY
+    }
+  });
+
+  const reviews = await res.json();
+
+  let text = "Reviews:\n\n";
+  reviews.forEach(r => {
+    text += `⭐ ${r.stars} - ${r.text}\n`;
+  });
+
+  alert(text || "No reviews yet.");
+}
+
+// ---------- INIT ----------
+initMap();
 </script>
 
 </body>
