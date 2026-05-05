@@ -15,7 +15,7 @@ body {
 }
 
 .sidebar {
-  width: 340px;
+  width: 360px;
   background: #f4f4f4;
   padding: 12px;
   overflow-y: auto;
@@ -53,9 +53,28 @@ input, select, button {
 <body>
 
 <div class="sidebar">
-<h2>🏍️ Dirt Bike App</h2>
+<h2>🏍️ Dirt Bike Finder</h2>
 
-<button onclick="loadSpots()">Load Spots</button>
+<button onclick="loadAll()">Load Spots</button>
+
+<hr>
+
+<h3>🔎 Filters</h3>
+
+<select id="filterType">
+  <option value="all">All Types</option>
+  <option value="trail">Trails</option>
+  <option value="mx">Tracks</option>
+</select>
+
+<select id="filterDiff">
+  <option value="all">All Difficulty</option>
+  <option value="beginner">Beginner</option>
+  <option value="intermediate">Intermediate</option>
+  <option value="advanced">Advanced</option>
+</select>
+
+<button onclick="applyFilters()">Apply Filters</button>
 
 <hr>
 
@@ -94,6 +113,16 @@ const SUPABASE_KEY = "sb_publishable_snTfGm6RFUZVX0HxsgQwaA_xCNqP2tu";
 
 let map;
 let markers = [];
+let allSpots = []; // merged database
+
+// 🧠 PRELOADED SPOTS (your built-in database)
+const defaultSpots = [
+  { id: "local1", name: "Club Moto MX", type: "mx", difficulty: "advanced", lat: 37.7016, lng: -121.7650 },
+  { id: "local2", name: "Argyll MX Park", type: "mx", difficulty: "intermediate", lat: 38.4440, lng: -121.8200 },
+  { id: "local3", name: "Corral Hollow OHV", type: "trail", difficulty: "intermediate", lat: 37.6200, lng: -121.5600 },
+  { id: "local4", name: "Del Puerto Canyon", type: "trail", difficulty: "advanced", lat: 37.4550, lng: -121.1100 },
+  { id: "local5", name: "Beginner Practice Area", type: "trail", difficulty: "beginner", lat: 37.6500, lng: -121.7000 }
+];
 
 // ---------- MAP ----------
 function initMap() {
@@ -104,7 +133,74 @@ function initMap() {
   }).addTo(map);
 }
 
-// ---------- GEOCODING ----------
+// ---------- LOAD FROM SUPABASE ----------
+async function loadFromDB() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/spots`, {
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`
+    }
+  });
+
+  const data = await res.json();
+  return data || [];
+}
+
+// ---------- MERGE DATA ----------
+async function loadAll() {
+  const dbSpots = await loadFromDB();
+  allSpots = [...defaultSpots, ...dbSpots];
+  render(allSpots);
+}
+
+// ---------- FILTER ----------
+function applyFilters() {
+  const type = document.getElementById("filterType").value;
+  const diff = document.getElementById("filterDiff").value;
+
+  const filtered = allSpots.filter(s => {
+    if (type !== "all" && s.type !== type) return false;
+    if (diff !== "all" && s.difficulty !== diff) return false;
+    return true;
+  });
+
+  render(filtered);
+}
+
+// ---------- RENDER ----------
+function render(spots) {
+  document.getElementById("list").innerHTML = "";
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+
+  spots.forEach(spot => {
+    const marker = L.marker([spot.lat, spot.lng]).addTo(map);
+
+    marker.bindPopup(`
+      <b>${spot.name}</b><br>
+      ${spot.type} | ${spot.difficulty}
+    `);
+
+    markers.push(marker);
+
+    const div = document.createElement("div");
+    div.className = "item";
+
+    div.innerHTML = `
+      <b>${spot.name}</b><br>
+      <span class="small">${spot.type} | ${spot.difficulty}</span>
+    `;
+
+    div.onclick = () => {
+      map.setView([spot.lat, spot.lng], 13);
+      marker.openPopup();
+    };
+
+    document.getElementById("list").appendChild(div);
+  });
+}
+
+// ---------- GEOCODE ----------
 async function getCoordinates(address, postal) {
   const query = encodeURIComponent(`${address}, ${postal}`);
 
@@ -125,58 +221,13 @@ async function getCoordinates(address, postal) {
   };
 }
 
-// ---------- LOAD SPOTS ----------
-async function loadSpots() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/spots`, {
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`
-    }
-  });
-
-  const spots = await res.json();
-
-  document.getElementById("list").innerHTML = "";
-  markers.forEach(m => map.removeLayer(m));
-  markers = [];
-
-  spots.forEach(spot => {
-    const marker = L.marker([spot.lat, spot.lng]).addTo(map);
-
-    marker.bindPopup(`
-      <b>${spot.name}</b><br>
-      Type: ${spot.type}<br>
-      Difficulty: ${spot.difficulty}<br>
-      ⭐ Rating: ${spot.rating || 0}
-    `);
-
-    markers.push(marker);
-
-    const div = document.createElement("div");
-    div.className = "item";
-
-    div.innerHTML = `
-      <b>${spot.name}</b><br>
-      <span class="small">${spot.type} | ${spot.difficulty}</span><br>
-      ⭐ ${spot.rating || 0}
-    `;
-
-    div.onclick = () => {
-      map.setView([spot.lat, spot.lng], 13);
-      marker.openPopup();
-      loadReviews(spot.id);
-    };
-
-    document.getElementById("list").appendChild(div);
-  });
-}
-
 // ---------- ADD SPOT ----------
 async function addSpot() {
-  const address = document.getElementById("address").value;
-  const postal = document.getElementById("postal").value;
+  const coords = await getCoordinates(
+    document.getElementById("address").value,
+    document.getElementById("postal").value
+  );
 
-  const coords = await getCoordinates(address, postal);
   if (!coords) return;
 
   const spot = {
@@ -184,8 +235,7 @@ async function addSpot() {
     type: document.getElementById("type").value,
     difficulty: document.getElementById("difficulty").value,
     lat: coords.lat,
-    lng: coords.lng,
-    rating: 0
+    lng: coords.lng
   };
 
   await fetch(`${SUPABASE_URL}/rest/v1/spots`, {
@@ -199,29 +249,12 @@ async function addSpot() {
   });
 
   alert("Spot added!");
-  loadSpots();
-}
-
-// ---------- REVIEWS ----------
-async function loadReviews(spotId) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/reviews?spot_id=eq.${spotId}`, {
-    headers: {
-      apikey: SUPABASE_KEY
-    }
-  });
-
-  const reviews = await res.json();
-
-  let text = "Reviews:\n\n";
-  reviews.forEach(r => {
-    text += `⭐ ${r.stars} - ${r.text}\n`;
-  });
-
-  alert(text || "No reviews yet.");
+  loadAll();
 }
 
 // ---------- INIT ----------
 initMap();
+loadAll();
 </script>
 
 </body>
