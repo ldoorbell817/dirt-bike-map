@@ -33,7 +33,9 @@ body {
   cursor: pointer;
 }
 
-.item:hover { background: #eaeaea; }
+.item:hover {
+  background: #eaeaea;
+}
 
 input, select, button {
   width: 100%;
@@ -57,9 +59,10 @@ input, select, button {
 
 <hr>
 
-<h3>➕ Add Spot</h3>
+<h3>➕ Add Spot (Address)</h3>
 
 <input id="name" placeholder="Name">
+
 <select id="type">
   <option value="trail">Trail</option>
   <option value="mx">Track</option>
@@ -71,8 +74,8 @@ input, select, button {
   <option value="advanced">Advanced</option>
 </select>
 
-<input id="lat" placeholder="Latitude">
-<input id="lng" placeholder="Longitude">
+<input id="address" placeholder="Street Address">
+<input id="postal" placeholder="Postal Code">
 
 <button onclick="addSpot()">Submit Spot</button>
 
@@ -101,6 +104,27 @@ function initMap() {
   }).addTo(map);
 }
 
+// ---------- GEOCODING ----------
+async function getCoordinates(address, postal) {
+  const query = encodeURIComponent(`${address}, ${postal}`);
+
+  const res = await fetch(
+    `https://nominatim.openstreetmap.org/search?format=json&q=${query}`
+  );
+
+  const data = await res.json();
+
+  if (!data.length) {
+    alert("Location not found");
+    return null;
+  }
+
+  return {
+    lat: parseFloat(data[0].lat),
+    lng: parseFloat(data[0].lon)
+  };
+}
+
 // ---------- LOAD SPOTS ----------
 async function loadSpots() {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/spots`, {
@@ -123,7 +147,7 @@ async function loadSpots() {
       <b>${spot.name}</b><br>
       Type: ${spot.type}<br>
       Difficulty: ${spot.difficulty}<br>
-      ⭐ Rating: ${spot.rating || "0"}
+      ⭐ Rating: ${spot.rating || 0}
     `);
 
     markers.push(marker);
@@ -149,12 +173,18 @@ async function loadSpots() {
 
 // ---------- ADD SPOT ----------
 async function addSpot() {
+  const address = document.getElementById("address").value;
+  const postal = document.getElementById("postal").value;
+
+  const coords = await getCoordinates(address, postal);
+  if (!coords) return;
+
   const spot = {
     name: document.getElementById("name").value,
     type: document.getElementById("type").value,
     difficulty: document.getElementById("difficulty").value,
-    lat: parseFloat(document.getElementById("lat").value),
-    lng: parseFloat(document.getElementById("lng").value),
+    lat: coords.lat,
+    lng: coords.lng,
     rating: 0
   };
 
