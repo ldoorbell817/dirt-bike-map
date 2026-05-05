@@ -108,8 +108,8 @@ input, select, button {
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-const SUPABASE_URL = "https://lwlartiyogwydsxljgqm.supabase.co/rest/v1/";
-const SUPABASE_KEY = "sb_publishable_snTfGm6RFUZVX0HxsgQwaA_xCNqP2tu";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_KEY = "YOUR_SUPABASE_KEY";
 
 let map;
 let markers = [];
@@ -135,10 +135,10 @@ function initMap() {
 
 // ---------- LOAD FROM SUPABASE ----------
 async function loadFromDB() {
-  const res = await fetch(`${https://lwlartiyogwydsxljgqm.supabase.co/rest/v1/}/rest/v1/spots`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/spots`, {
     headers: {
-      apikey: sb_publishable_snTfGm6RFUZVX0HxsgQwaA_xCNqP2tu,
-      Authorization: `Bearer ${sb_publishable_snTfGm6RFUZVX0HxsgQwaA_xCNqP2tu}`
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`
     }
   });
 
